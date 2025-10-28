@@ -1,0 +1,238 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>3I-ATLAS - Visualización 3D</title>
+  <style>
+    html, body { 
+      margin: 0; 
+      height: 100%;
+      background: #000; 
+    }
+    canvas { 
+      width: 100%; 
+      height: 100%; 
+      display: block; 
+    }
+    #ui { 
+      position: absolute; 
+      top: 16px; 
+      left: 16px; 
+      color: white; 
+      font-family: Arial, sans-serif;
+      background: rgba(0,0,0,0.7);
+      padding: 12px;
+      border-radius: 8px;
+    }
+    button {
+      background: #2a2a2a;
+      color: white;
+      border: 1px solid #444;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button:hover {
+      background: #3a3a3a;
+    }
+    label {
+      margin-left: 12px;
+    }
+    #status {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <button id="play">▶ Play</button>
+    <button id="pause">⏸ Pause</button>
+    <label>Velocidad: <input id="speed" type="range" min="0.1" max="10" step="0.1" value="1"></label>
+    <div id="status">Cargando datos...</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+
+    // Configuración
+    const API_BASE = 'http://127.0.0.1:8000';
+    const VECTORS_ENDPOINT = `${API_BASE}/api/vectors`;
+    const AU_TO_KM = 149597870.7; // km
+    const VISUAL_SCALE = 1e-6; // ajusta este valor si los objetos están muy lejos/cerca
+
+    // Setup Three.js
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000010);
+
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 1e6);
+    camera.position.set(0, 5, 15);
+
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      powerPreference: "high-performance"
+    });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Iluminación
+    const light = new THREE.DirectionalLight(0xffffff, 1.0);
+    light.position.set(5,10,7.5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x333333));
+
+    // Sol (origen)
+    const sunMat = new THREE.MeshBasicMaterial({ 
+      color: 0xffdd66,
+      transparent: true,
+      opacity: 0.8
+    });
+    const sunGeom = new THREE.SphereGeometry(0.5, 32, 32);
+    const sun = new THREE.Mesh(sunGeom, sunMat);
+    scene.add(sun);
+
+    // Grilla de referencia (opcional, comentar si no se desea)
+    const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+    scene.add(gridHelper);
+
+    // 3I/ATLAS
+    const bodyMat = new THREE.MeshStandardMaterial({ 
+      color: 0x66aaff,
+      metalness: 0.3,
+      roughness: 0.7
+    });
+    const bodyGeom = new THREE.SphereGeometry(0.15, 16, 16);
+    const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
+    scene.add(bodyMesh);
+
+    // Trail (órbita)
+    let trailGeom = new THREE.BufferGeometry();
+    let trailPoints = [];
+    let trailLine = null;
+
+    // Estado para animación
+    let positions = [];
+    let idx = 0;
+    let playing = false;
+    let speed = 1.0;
+
+    // UI
+    const statusDiv = document.getElementById('status');
+    document.getElementById('play').onclick = () => { playing = true; };
+    document.getElementById('pause').onclick = () => { playing = false; };
+    document.getElementById('speed').oninput = (e) => { 
+      speed = parseFloat(e.target.value);
+      statusDiv.textContent = `Velocidad: ${speed}x`;
+    };
+
+    // Fetch datos y setup
+    async function init() {
+      try {
+        statusDiv.textContent = 'Cargando vectores...';
+        const res = await fetch(VECTORS_ENDPOINT);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        positions = data.map(rec => {
+          const x = parseFloat(rec.X);
+          const y = parseFloat(rec.Y);
+          const z = parseFloat(rec.Z);
+          return { 
+            x, y, z,
+            jd: rec.JD_TT || rec.JD || rec.ISO || null,
+            dist: rec.Distance_AU || Math.sqrt(x*x + y*y + z*z)
+          };
+        });
+
+        if (positions.length === 0) {
+          statusDiv.textContent = 'Error: No hay datos de posición';
+          return;
+        }
+
+        // Trail con BufferGeometry para mejor rendimiento
+        trailPoints = new Float32Array(positions.length * 3);
+        trailGeom.setAttribute('position', new THREE.BufferAttribute(trailPoints, 3));
+        
+        const trailMat = new THREE.LineBasicMaterial({ 
+          color: 0x66ff88,
+          transparent: true,
+          opacity: 0.6
+        });
+        trailLine = new THREE.Line(trailGeom, trailMat);
+        scene.add(trailLine);
+
+        // Posición inicial
+        setBodyPosition(0);
+        camera.lookAt(0,0,0);
+        
+        statusDiv.textContent = `${positions.length} puntos cargados`;
+      } catch (err) {
+        console.error('Error cargando vectores:', err);
+        statusDiv.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    function setBodyPosition(i) {
+      const p = positions[i];
+      // Escala de AU a unidades de escena
+      const sx = p.x * VISUAL_SCALE;
+      const sy = p.y * VISUAL_SCALE;
+      const sz = p.z * VISUAL_SCALE;
+      bodyMesh.position.set(sx, sy, sz);
+
+      // Actualiza trail hasta índice actual
+      for (let k = 0; k <= i; k++) {
+        const q = positions[k];
+        trailPoints[3*k + 0] = q.x * VISUAL_SCALE;
+        trailPoints[3*k + 1] = q.y * VISUAL_SCALE;
+        trailPoints[3*k + 2] = q.z * VISUAL_SCALE;
+      }
+      trailGeom.attributes.position.needsUpdate = true;
+      trailGeom.setDrawRange(0, i+1);
+
+      if (p.jd) {
+        statusDiv.textContent = `JD: ${p.jd.toFixed(2)} | Dist: ${p.dist.toFixed(3)} AU`;
+      }
+    }
+
+    // Loop de animación
+    let lastTime = performance.now();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = (now - lastTime) / 1000.0;
+      lastTime = now;
+
+      if (playing && positions.length > 1) {
+        idx += speed * dt;
+        if (idx >= positions.length) idx = 0;
+        const i = Math.floor(idx);
+        setBodyPosition(i);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Responsive
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // Inicio
+    init().then(() => {
+      requestAnimationFrame(animate);
+    });
+
+  </script>
+</body>
+</html>
