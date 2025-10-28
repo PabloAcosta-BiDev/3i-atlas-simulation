@@ -1,0 +1,25 @@
+{
+  "Objeto": "3I/ATLAS",
+  "DesignacionMPC": "0003I",
+  "ElementosOrbitales": {
+    "Epoch_TT": "2025 Nov. 21.0 TT",
+    "Epoch_JDT": "2461000.5",
+    "TiempoPerihelio_T_TT": "2025 Oct. 29.4836 TT",
+    "TiempoPerihelio_T_JDT": "2460977.98361 JDT",
+    "DistanciaPerihelio_q_AU": "1.356411",
+    "InversaSemiejeMayor_z": "-3.788733",
+    "Excentricidad_e": "6.139080",
+    "ArgumentoPerihelio_Peri_grados": "128.0120",
+    "LongitudNodoAscendente_Node_grados": "322.1584",
+    "Inclinacion_Incl_grados": "175.1131",
+    "Vector_P_X": "-0.9679175",
+    "Vector_P_Y": "-0.2457733",
+    "Vector_P_Z": "-0.0347372",
+    "Vector_Q_X": "-0.2488556",
+    "Vector_Q_Y": "+0.9089049",
+    "Vector_Q_Z": "+0.3368789",
+    "InversaSemiejeMayor_1/a_orig_AU-1": "-3.788947",
+    "InversaSemiejeMayor_1/a_fut_AU-1": "-3.788528",
+    "CalculosBase": "Perturbed ephemeris based on elements from MPEC 2025-TD3"
+  }
+}

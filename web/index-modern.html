@@ -70,8 +70,21 @@
         // Configuración
         const API_BASE = 'http://127.0.0.1:8000';
         const VECTORS_ENDPOINT = `${API_BASE}/api/vectors`;
+        const PLANETS_ENDPOINT = `${API_BASE}/api/planets`;
         const AU_TO_KM = 149597870.7; // km
         const VISUAL_SCALE = 1.0; // Escala 1:1 para ver mejor
+        
+        // Colores de los planetas
+        const PLANET_COLORS = {
+            mercury: 0xA5A5A5,  // Gris plateado
+            venus: 0xE6C829,    // Amarillo dorado
+            earth: 0x3366FF,    // Azul
+            mars: 0xCC3300,     // Rojo
+            jupiter: 0xE6B88A,  // Beige/marrón claro
+            saturn: 0xEAD6B8,   // Beige dorado
+            uranus: 0x73B9FF,   // Azul claro
+            neptune: 0x3333CC   // Azul oscuro
+        };
 
         // Setup Three.js
         const scene = new THREE.Scene();
@@ -112,6 +125,25 @@
         const gridHelper = new THREE.GridHelper(4, 4, 0x444444, 0x222222); // Grid más pequeña
         scene.add(gridHelper);
 
+        // Planetas
+        const planetMeshes = {};
+        for (const [name, color] of Object.entries(PLANET_COLORS)) {
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: color,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            // Tamaños relativos aproximados (no a escala real para que sean visibles)
+            const size = name === 'jupiter' ? 0.08 : 
+                        name === 'saturn' ? 0.07 :
+                        name === 'uranus' || name === 'neptune' ? 0.06 :
+                        0.04;  // terrestres
+            const geom = new THREE.SphereGeometry(size, 16, 16);
+            const mesh = new THREE.Mesh(geom, mat);
+            scene.add(mesh);
+            planetMeshes[name] = mesh;
+        }
+
         // 3I/ATLAS
         const bodyMat = new THREE.MeshStandardMaterial({ 
             color: 0x66aaff,
@@ -129,6 +161,7 @@
 
         // Estado para animación
         let positions = [];
+        let planetData = {};
         let idx = 0;
         let playing = false;
         let speed = 1.0;
@@ -145,10 +178,17 @@
         // Fetch datos y setup
         async function init() {
             try {
-                statusDiv.textContent = 'Cargando vectores...';
+                statusDiv.textContent = 'Cargando datos...';
+                
+                // Cargar datos del cometa
                 const res = await fetch(VECTORS_ENDPOINT);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
+
+                // Cargar datos de planetas
+                const planetsRes = await fetch(PLANETS_ENDPOINT);
+                if (!planetsRes.ok) throw new Error('HTTP ' + planetsRes.status);
+                planetData = await planetsRes.json();
 
                 // Log primeros 3 registros de datos crudos
                 console.log('Primeros 3 registros de la API:', data.slice(0, 3));
@@ -204,12 +244,26 @@
         }
 
         function setBodyPosition(i) {
+            // Actualizar cometa
             const p = positions[i];
-            // Escala de AU a unidades de escena
             const sx = p.x * VISUAL_SCALE;
             const sy = p.y * VISUAL_SCALE;
             const sz = p.z * VISUAL_SCALE;
             bodyMesh.position.set(sx, sy, sz);
+
+            // Actualizar planetas (si hay datos)
+            if (planetData.bodies) {
+                for (const [name, positions] of Object.entries(planetData.bodies)) {
+                    if (positions[0] && planetMeshes[name]) {  // Usar primera posición por ahora
+                        const pos = positions[0];
+                        planetMeshes[name].position.set(
+                            pos.x * VISUAL_SCALE,
+                            pos.y * VISUAL_SCALE,
+                            pos.z * VISUAL_SCALE
+                        );
+                    }
+                }
+            }
 
             // Actualiza trail hasta índice actual
             for (let k = 0; k <= i; k++) {

@@ -42,6 +42,37 @@ def get_deltas(location: str):
 def get_orbits():
     return load_json("elemental_orbits.json")
 
+
+@app.get("/api/planets")
+def get_planets():
+    """Get heliocentric positions for all planets.
+    Returns a dict with all planet positions from pre-generated JSON files.
+    """
+    result = {
+        "bodies": {},
+        "times": None
+    }
+    
+    # Read all planet JSONs from data/planets/
+    for name in ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+        try:
+            data = load_json(os.path.join("planets", f"{name}.json"))
+            if result["times"] is None:
+                result["times"] = data["times"]
+            result["bodies"][name] = data["positions"]
+        except Exception as e:
+            print(f"Error loading {name}.json: {e}")
+            continue
+    
+    return JSONResponse(content=result)
+
+
+@app.get("/api/planets/{name}")
+def get_planet_file(name: str):
+    # serve cached/generated planet JSON under data/planets/{name}.json
+    fn = os.path.join("planets", f"{name.lower()}.json")
+    return load_json(fn)
+
 @app.get("/api/status")
 def get_status():
     files = os.listdir(DATA_DIR)
