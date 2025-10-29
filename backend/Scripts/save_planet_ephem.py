@@ -6,12 +6,15 @@ import os
 import json
 from backend.Scripts.generate_planet_ephem import generate_planet_ephem
 
-# Use the same epoch as the comet data
-START_DATE = "2025-10-28T00:00:00"
+# Use the same epoch range as the comet data
+START_DATE = "2025-10-23T00:00:00"
+END_DATE = "2025-10-29T00:00:00"
 
-# Generate for all planets
+# Generate for all planets with hourly steps
 data = generate_planet_ephem(
     start=START_DATE,
+    end=END_DATE,
+    step_minutes=60,  # hourly steps like the comet data
     bodies=["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"]
 )
 

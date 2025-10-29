@@ -91,7 +91,12 @@
         scene.background = new THREE.Color(0x000010);
 
         const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 1e6);
-        camera.position.set(0, 2, 3); // Más cerca para ver mejor
+        
+        // MODIFICADO: Definir Z como eje vertical (Z-up system)
+        camera.up.set(0, 0, 1);
+        
+        // MODIFICADO: Posición inicial con Z como altura
+        camera.position.set(0, 8, 15);
 
         const renderer = new THREE.WebGLRenderer({ 
             antialias: true,
@@ -104,6 +109,10 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
+        
+        // MODIFICADO: Configuración para sistema Z-up
+        controls.target.set(0, 0, 0);
+        controls.update();
 
         // Iluminación
         const light = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -117,27 +126,28 @@
             transparent: true,
             opacity: 0.8
         });
-        const sunGeom = new THREE.SphereGeometry(0.1, 32, 32); // Sol más pequeño
+        const sunGeom = new THREE.SphereGeometry(0.1, 32, 32);
         const sun = new THREE.Mesh(sunGeom, sunMat);
         scene.add(sun);
 
-        // Grilla de referencia (opcional)
-        const gridHelper = new THREE.GridHelper(4, 4, 0x444444, 0x222222); // Grid más pequeña
+        // MODIFICADO: Grilla en plano XY (rotada 90° para Z-up)
+        const gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
+        gridHelper.rotation.x = Math.PI / 2;
         scene.add(gridHelper);
 
         // Planetas
         const planetMeshes = {};
+        const planetOrbitLines = {};
         for (const [name, color] of Object.entries(PLANET_COLORS)) {
             const mat = new THREE.MeshStandardMaterial({ 
                 color: color,
                 metalness: 0.3,
                 roughness: 0.7
             });
-            // Tamaños relativos aproximados (no a escala real para que sean visibles)
             const size = name === 'jupiter' ? 0.08 : 
                         name === 'saturn' ? 0.07 :
                         name === 'uranus' || name === 'neptune' ? 0.06 :
-                        0.04;  // terrestres
+                        0.04;
             const geom = new THREE.SphereGeometry(size, 16, 16);
             const mesh = new THREE.Mesh(geom, mat);
             scene.add(mesh);
@@ -150,7 +160,7 @@
             metalness: 0.3,
             roughness: 0.7
         });
-        const bodyGeom = new THREE.SphereGeometry(0.05, 16, 16); // Cometa más pequeño pero visible
+        const bodyGeom = new THREE.SphereGeometry(0.05, 16, 16);
         const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
         scene.add(bodyMesh);
 
@@ -175,22 +185,95 @@
             statusDiv.textContent = `Velocidad: ${speed}x`;
         };
 
+        // Calcular plano orbital desde datos reales
+        function calculateOrbitalPlane(planetPositions) {
+            if (planetPositions.length < 3) {
+                return { normal: new THREE.Vector3(0, 1, 0), center: new THREE.Vector3(0, 0, 0) };
+            }
+
+            const center = new THREE.Vector3(0, 0, 0);
+            planetPositions.forEach(p => {
+                center.x += p.x;
+                center.y += p.y;
+                center.z += p.z;
+            });
+            center.divideScalar(planetPositions.length);
+
+            const idx1 = 0;
+            const idx2 = Math.floor(planetPositions.length / 2);
+            const idx3 = planetPositions.length - 1;
+
+            const p1 = new THREE.Vector3(
+                planetPositions[idx1].x - center.x,
+                planetPositions[idx1].y - center.y,
+                planetPositions[idx1].z - center.z
+            );
+            const p2 = new THREE.Vector3(
+                planetPositions[idx2].x - center.x,
+                planetPositions[idx2].y - center.y,
+                planetPositions[idx2].z - center.z
+            );
+
+            const normal = new THREE.Vector3();
+            normal.crossVectors(p1, p2).normalize();
+
+            return { normal, center };
+        }
+
+        // Función para crear órbita circular en plano inclinado
+        function createPlanetOrbit(name, planetPositions, avgRadius, color) {
+            const { normal, center } = calculateOrbitalPlane(planetPositions);
+
+            const curve = new THREE.EllipseCurve(
+                0, 0,
+                avgRadius, avgRadius,
+                0, 2 * Math.PI,
+                false, 0
+            );
+            
+            const points = curve.getPoints(100);
+            const basePoints = points.map(p => new THREE.Vector3(p.x, 0, p.y));
+            const baseNormal = new THREE.Vector3(0, 1, 0);
+            
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(baseNormal, normal);
+
+            const rotatedPoints = basePoints.map(p => {
+                const rotated = p.clone();
+                rotated.applyQuaternion(quaternion);
+                rotated.multiplyScalar(VISUAL_SCALE);
+                return rotated;
+            });
+
+            const orbitGeometry = new THREE.BufferGeometry().setFromPoints(rotatedPoints);
+            
+            const orbitMaterial = new THREE.LineBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+            scene.add(orbitLine);
+            
+            console.log(`${name}: normal orbital = (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
+            
+            return orbitLine;
+        }
+
         // Fetch datos y setup
         async function init() {
             try {
                 statusDiv.textContent = 'Cargando datos...';
                 
-                // Cargar datos del cometa
                 const res = await fetch(VECTORS_ENDPOINT);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
 
-                // Cargar datos de planetas
                 const planetsRes = await fetch(PLANETS_ENDPOINT);
                 if (!planetsRes.ok) throw new Error('HTTP ' + planetsRes.status);
                 planetData = await planetsRes.json();
 
-                // Log primeros 3 registros de datos crudos
                 console.log('Primeros 3 registros de la API:', data.slice(0, 3));
 
                 positions = data.map(rec => {
@@ -198,7 +281,6 @@
                     const y = parseFloat(rec.Y);
                     const z = parseFloat(rec.Z);
                     
-                    // Log las primeras 3 posiciones procesadas
                     if (positions.length < 3) {
                         console.log('Posición procesada:', { x, y, z });
                         console.log('Posición escalada:', { 
@@ -220,7 +302,16 @@
                     return;
                 }
 
-                // Trail con BufferGeometry para mejor rendimiento
+                if (planetData.bodies) {
+                    for (const [name, planetPositions] of Object.entries(planetData.bodies)) {
+                        if (planetPositions.length > 0 && PLANET_COLORS[name]) {
+                            const avgRadius = planetPositions.reduce((sum, p) => sum + p.r_au, 0) / planetPositions.length;
+                            planetOrbitLines[name] = createPlanetOrbit(name, planetPositions, avgRadius, PLANET_COLORS[name]);
+                            console.log(`Órbita creada para ${name}: radio = ${avgRadius.toFixed(3)} AU`);
+                        }
+                    }
+                }
+
                 trailPoints = new Float32Array(positions.length * 3);
                 trailGeom.setAttribute('position', new THREE.BufferAttribute(trailPoints, 3));
                 
@@ -232,7 +323,6 @@
                 trailLine = new THREE.Line(trailGeom, trailMat);
                 scene.add(trailLine);
 
-                // Posición inicial
                 setBodyPosition(0);
                 camera.lookAt(0,0,0);
                 
@@ -244,18 +334,21 @@
         }
 
         function setBodyPosition(i) {
-            // Actualizar cometa
             const p = positions[i];
             const sx = p.x * VISUAL_SCALE;
             const sy = p.y * VISUAL_SCALE;
             const sz = p.z * VISUAL_SCALE;
             bodyMesh.position.set(sx, sy, sz);
 
-            // Actualizar planetas (si hay datos)
             if (planetData.bodies) {
-                for (const [name, positions] of Object.entries(planetData.bodies)) {
-                    if (positions[0] && planetMeshes[name]) {  // Usar primera posición por ahora
-                        const pos = positions[0];
+                for (const [name, planetPositions] of Object.entries(planetData.bodies)) {
+                    if (planetMeshes[name] && planetPositions.length > 0) {
+                        const planetIdx = Math.min(
+                            Math.floor((i / positions.length) * planetPositions.length),
+                            planetPositions.length - 1
+                        );
+                        
+                        const pos = planetPositions[planetIdx];
                         planetMeshes[name].position.set(
                             pos.x * VISUAL_SCALE,
                             pos.y * VISUAL_SCALE,
@@ -265,7 +358,6 @@
                 }
             }
 
-            // Actualiza trail hasta índice actual
             for (let k = 0; k <= i; k++) {
                 const q = positions[k];
                 trailPoints[3*k + 0] = q.x * VISUAL_SCALE;
