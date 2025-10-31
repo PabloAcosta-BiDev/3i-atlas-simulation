@@ -8,21 +8,83 @@
             margin: 0; 
             height: 100%;
             background: #000; 
+            overflow-x: hidden;
         }
         canvas { 
             width: 100%; 
             height: 100%; 
             display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: auto;
+        }
+        
+        #navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #navbar a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+        #navbar a:hover {
+            color: rgba(255, 255, 255, 1);
+        }
+        #navbar a.active {
+            color: #66aaff;
+            border-bottom: 2px solid #66aaff;
+            padding-bottom: 4px;
+        }
+        .page {
+            display: none;
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .page * {
+            pointer-events: auto;
+        }
+        .page.active {
+            display: block;
+        }
+        #simulation-page {
+            height: 100vh;
+        }
+        #dashboard-page, #about-page {
+            min-height: 100vh;
+            padding: 80px 20px 100px 20px;
+            background: url('./assets/textures/stars.jpg') center/cover;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #ui { 
-            position: absolute; 
-            top: 16px; 
+            position: fixed; 
+            top: 76px; 
             left: 16px; 
             color: white; 
             font-family: Arial, sans-serif;
             background: rgba(0,0,0,0.7);
             padding: 12px;
             border-radius: 8px;
+            z-index: 100;
         }
         button {
             background: #2a2a2a;
@@ -44,8 +106,46 @@
             font-size: 0.9em;
             color: #aaa;
         }
+        #footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: rgba(255, 255, 255, 0.6);
+            padding: 16px 20px;
+            font-size: 11px;
+            line-height: 1.5;
+            z-index: 1000;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        #date-display {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            z-index: 100;
+            border: 1px solid rgba(102, 170, 255, 0.3);
+        }
+        #date-display .iso-date {
+            font-weight: 600;
+            color: #66aaff;
+            font-size: 16px;
+        }
+        #date-display .distance {
+            margin-top: 4px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
     </style>
-    <!-- Import maps para módulos ES -->
     <script type="importmap">
         {
             "imports": {
@@ -56,46 +156,185 @@
     </script>
 </head>
 <body>
-    <div id="ui">
-        <button id="play">▶ Play</button>
-        <button id="pause">⏸ Pause</button>
-        <label>Velocidad: <input id="speed" type="range" min="0.1" max="10" step="0.1" value="1"></label>
-        <div id="status">Cargando datos...</div>
+    <div id="navbar">
+        <a href="#" data-page="simulation" class="active">3D Simulation</a>
+        <a href="#" data-page="dashboard">Dashboard</a>
+        <a href="#" data-page="about">About</a>
+    </div>
+
+    <div id="simulation-page" class="page active">
+        <div id="ui">
+            <button id="play">▶ Play</button>
+            <button id="pause">⏸ Pause</button>
+            <label>Velocidad: <input id="speed" type="range" min="0.1" max="10" step="0.1" value="1"></label>
+            <div id="status">Cargando datos...</div>
+        </div>
+        <div id="date-display">
+            <div class="iso-date">--</div>
+            <div class="distance">Distance: -- AU</div>
+        </div>
+    </div>
+
+    <div id="dashboard-page" class="page">
+        <h1 style="text-align: center; margin-bottom: 30px;">3I/ATLAS Data Dashboard</h1>
+        <iframe src="YOUR_POWERBI_EMBED_URL" width="100%" height="800" frameborder="0" allowFullScreen="true"></iframe>
+    </div>
+
+    <div id="about-page" class="page">
+        <div style="max-width: 900px; margin: 0 auto;">
+            <h1 style="text-align: center; margin-bottom: 40px; font-size: 2.5em;">About 3I/ATLAS (C/2025 N1)</h1>
+            
+            <!-- Key Data Card -->
+            <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 30px; margin-bottom: 40px;">
+                <h2 style="color: #66aaff; margin-top: 0;">Key Data</h2>
+                <ul style="list-style: none; padding: 0; line-height: 2;">
+                    <li><strong>Designation:</strong> 3I/ATLAS; C/2025 N1</li>
+                    <li><strong>Discovery Date:</strong> July 1, 2025</li>
+                    <li><strong>Object Type:</strong> Interstellar Comet</li>
+                    <li><strong>Max Speed (at Perihelion):</strong> ~152,000 mph (~68 km/s)</li>
+                    <li><strong>Nucleus Diameter:</strong> Est. 1-11 km</li>
+                    <li><strong>Perihelion:</strong> 10/29/2025 (1.36 AU)</li>
+                    <li><strong>Earth Closest:</strong> 12/19/2025 (167,274,685 miles)</li>
+                    <li><strong>Mars Closest:</strong> 10/3/2025 (18,090,148 miles)</li>
+                    <li><strong>Threat to Earth:</strong> None</li>
+                </ul>
+            </div>
+
+            <!-- Scientific Guide -->
+            <div style="line-height: 1.8;">
+                <h2 style="color: #66aaff; margin-top: 40px;">A Complete Scientific Guide to 3I/ATLAS (C/2025 N1)</h2>
+                <p>Discovered on July 1, 2025, by the ATLAS telescope in Chile, 3I/ATLAS (C/2025 N1) is the third confirmed interstellar object to visit our solar system. This comet, originating from the Milky Way's thick disk, may be over 7 billion years old, offering a glimpse into the chemistry of a distant star system.</p>
+
+                <h3 style="color: #88bbff; margin-top: 30px;">The Discovery Story</h3>
+                <p>The comet was first detected as a faint object (magnitude ~18) by the NASA-funded ATLAS survey in Chile. Within hours, the Minor Planet Center (MPC) coordinated global follow-up observations. Precovery images from the Zwicky Transient Facility (June 14, 2025) and Vera C. Rubin Observatory extended its observational arc, confirming its hyperbolic orbit.</p>
+
+                <h3 style="color: #88bbff; margin-top: 30px;">An Interstellar Trajectory</h3>
+                <p>With an orbital eccentricity of ~6.143, 3I/ATLAS follows an open, hyperbolic path, unbound by the Sun's gravity. Its hyperbolic excess velocity of ~58 km/s (~130,000 mph) confirms its interstellar origin. The comet approaches from Sagittarius, with an inclination of ~175.11°, nearly aligned with the ecliptic plane.</p>
+
+                <!-- Comparison Table -->
+                <div style="overflow-x: auto; margin: 30px 0;">
+                    <table style="width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.05); border-radius: 8px; overflow: hidden;">
+                        <caption style="caption-side: top; text-align: left; padding: 15px; font-weight: bold; color: #66aaff; font-size: 1.1em;">Table 1: Comparative analysis of confirmed interstellar objects</caption>
+                        <thead>
+                            <tr style="background: rgba(102, 170, 255, 0.2);">
+                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2);">Feature</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2);">3I/ATLAS</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2);">2I/Borisov</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.2);">1I/ʻOumuamua</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><strong>Discovery Year</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">2025</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">2019</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">2017</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><strong>Object Type</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Active Comet</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Active Comet</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Asteroid-like</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><strong>Eccentricity (e)</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~6.143</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~3.36</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~1.20</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><strong>Velocity (v∞)</strong></td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~58 km/s</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~32 km/s</td>
+                                <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">~26 km/s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px;"><strong>Key Trait</strong></td>
+                                <td style="padding: 12px;">Extreme velocity; ancient origin</td>
+                                <td style="padding: 12px;">First visibly active ISO</td>
+                                <td style="padding: 12px;">Anomalous acceleration</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="font-size: 0.9em; color: rgba(255,255,255,0.6); margin-top: 10px;">Data compiled from NASA/JPL and MPC.</p>
+                </div>
+
+                <h3 style="color: #88bbff; margin-top: 30px;">Physical Nature: A Primordial Relic</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>Origin and Age:</strong> Likely formed in the Milky Way's thick disk, suggesting an age of 7.6-14 billion years, predating our solar system.</li>
+                    <li><strong>Size and Composition:</strong> Nucleus estimated at 1-11 km, with a coma up to 15 km. Contains water ice, silicate dust, and organic tholins; active at 6.4 AU due to volatile CO/CO2.</li>
+                </ul>
+
+                <h2 style="color: #66aaff; margin-top: 40px;">Frequently Asked Questions</h2>
+                
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #88bbff;">Will interstellar comet 3I/ATLAS hit Earth?</h4>
+                    <p>No, it poses zero threat. Its closest approach to Earth on December 19, 2025, will be at a safe distance of ~1.8 AU (~167 million miles, 269 million km).</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #88bbff;">Will 3I/ATLAS collide with Mars?</h4>
+                    <p>No, the comet will not hit Mars. It will make its closest pass of Mars on October 3, 2025, at a distance of approximately 0.19 AU, which is about 17 million miles (28 million km). While this is a close encounter in astronomical terms, it is a safe miss.</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #88bbff;">Could 3I/ATLAS crash into Jupiter?</h4>
+                    <p>No, 3I/ATLAS will not crash into Jupiter. The comet will pass Jupiter on March 16, 2026, at a distance of about 0.36 AU, or 33 million miles (54 million km). Jupiter's immense gravity will slightly alter the comet's path, but it will continue safely on its journey out of the solar system.</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #88bbff;">Is It an Alien Probe?</h4>
+                    <p>The scientific consensus confirms a natural comet, with a coma and tail. Speculative theories (e.g., Avi Loeb's) suggest technosignature checks, but no evidence supports this. SETI monitoring shows no signals.</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4 style="color: #88bbff;">How Can I See It?</h4>
+                    <p>Not naked-eye visible (magnitude ~16-17). Use 4-8 inch telescopes from July-September 2025 or post-December 2025. Check TheSkyLive.com for ephemerides.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer">
+        <strong>Disclaimer:</strong> This website is an educational tool providing a real-time trajectory visualization for the interstellar comet 3I/ATLAS (C/2025 N1). All orbital calculations are based on preliminary ephemeris data from the Minor Planet Center (MPC) and NASA/JPL. This simulator was developed by a coding enthusiast leveraging AI tools for rapid development. For official scientific data, please consult NASA or the IAU directly.
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // Configuración
         const API_BASE = 'http://127.0.0.1:8000';
         const VECTORS_ENDPOINT = `${API_BASE}/api/vectors`;
         const PLANETS_ENDPOINT = `${API_BASE}/api/planets`;
-        const AU_TO_KM = 149597870.7; // km
-        const VISUAL_SCALE = 1.0; // Escala 1:1 para ver mejor
+        const AU_TO_KM = 149597870.7;
+        const VISUAL_SCALE = 1.0;
         
-        // Colores de los planetas
         const PLANET_COLORS = {
-            mercury: 0xA5A5A5,  // Gris plateado
-            venus: 0xE6C829,    // Amarillo dorado
-            earth: 0x3366FF,    // Azul
-            mars: 0xCC3300,     // Rojo
-            jupiter: 0xE6B88A,  // Beige/marrón claro
-            saturn: 0xEAD6B8,   // Beige dorado
-            uranus: 0x73B9FF,   // Azul claro
-            neptune: 0x3333CC   // Azul oscuro
+            mercury: 0xA5A5A5,
+            venus: 0xE6C829,
+            earth: 0x3366FF,
+            mars: 0xCC3300,
+            jupiter: 0xE6B88A,
+            saturn: 0xEAD6B8,
+            uranus: 0x73B9FF,
+            neptune: 0x3333CC
         };
 
-        // Setup Three.js
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000010);
+        
+        const textureLoader = new THREE.TextureLoader();
+        const cubeTextureLoader = new THREE.CubeTextureLoader();
+        scene.background = cubeTextureLoader.load([
+            './assets/textures/stars.jpg',
+            './assets/textures/stars.jpg',
+            './assets/textures/stars.jpg',
+            './assets/textures/stars.jpg',
+            './assets/textures/stars.jpg',
+            './assets/textures/stars.jpg'
+        ]);
 
         const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 1e6);
-        
-        // MODIFICADO: Definir Z como eje vertical (Z-up system)
         camera.up.set(0, 0, 1);
-        
-        // MODIFICADO: Posición inicial con Z como altura
         camera.position.set(0, 8, 15);
 
         const renderer = new THREE.WebGLRenderer({ 
@@ -109,38 +348,51 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        
-        // MODIFICADO: Configuración para sistema Z-up
         controls.target.set(0, 0, 0);
         controls.update();
 
-        // Iluminación
         const light = new THREE.DirectionalLight(0xffffff, 1.0);
         light.position.set(5,10,7.5);
         scene.add(light);
         scene.add(new THREE.AmbientLight(0x333333));
 
-        // Sol (origen)
         const sunMat = new THREE.MeshBasicMaterial({ 
-            color: 0xffdd66,
-            transparent: true,
-            opacity: 0.8
+            map: textureLoader.load('./assets/textures/sun.jpg')
         });
         const sunGeom = new THREE.SphereGeometry(0.1, 32, 32);
         const sun = new THREE.Mesh(sunGeom, sunMat);
+        sun.rotation.x = Math.PI / 2;
         scene.add(sun);
 
-        // MODIFICADO: Grilla en plano XY (rotada 90° para Z-up)
-        const gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
-        gridHelper.rotation.x = Math.PI / 2;
-        scene.add(gridHelper);
+        
 
-        // Planetas
         const planetMeshes = {};
         const planetOrbitLines = {};
+        const planetTextures = {
+            mercury: './assets/textures/mercury.jpg',
+            venus: './assets/textures/venus.jpg',
+            earth: './assets/textures/earth.jpg',
+            mars: './assets/textures/mars.jpg',
+            jupiter: './assets/textures/jupiter.jpg',
+            saturn: './assets/textures/saturn.jpg',
+            uranus: './assets/textures/uranus.jpg',
+            neptune: './assets/textures/neptune.jpg'
+        };
+
+        const axialTilts = {
+            mercury: 0.034,
+            venus: 177.4,
+            earth: 23.44,
+            mars: 25.19,
+            jupiter: 3.13,
+            saturn: 26.73,
+            uranus: 97.77,
+            neptune: 28.32
+        };
+
         for (const [name, color] of Object.entries(PLANET_COLORS)) {
             const mat = new THREE.MeshStandardMaterial({ 
-                color: color,
+                map: textureLoader.load(planetTextures[name]),
                 metalness: 0.3,
                 roughness: 0.7
             });
@@ -150,33 +402,114 @@
                         0.04;
             const geom = new THREE.SphereGeometry(size, 16, 16);
             const mesh = new THREE.Mesh(geom, mat);
+            
+            mesh.rotation.x = Math.PI / 2;
+            const tiltRadians = (axialTilts[name] || 0) * (Math.PI / 180);
+            mesh.rotation.order = 'XYZ';
+            mesh.rotation.z = -tiltRadians;
+            
             scene.add(mesh);
             planetMeshes[name] = mesh;
+            // Crear tooltip estilizado con glassmorphism
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 200;
+            canvas.height = 50;
+
+            // Glassmorphism background
+            const gradient = context.createLinearGradient(0, 0, 200, 50);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 200, 50);
+
+            // Border
+            context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            context.lineWidth = 1;
+            context.strokeRect(1, 1, 198, 48);
+
+            // Text
+            context.font = 'Bold 18px "Segoe UI", Arial';
+            context.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(name.charAt(0).toUpperCase() + name.slice(1), 100, 25);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(0.3, 0.075, 1);
+            scene.add(sprite);
+            mesh.userData.label = sprite;
         }
 
-        // 3I/ATLAS
+        const saturnRingGeo = new THREE.RingGeometry(0.09, 0.14, 32);
+        const saturnRingMat = new THREE.MeshBasicMaterial({
+            map: textureLoader.load('./assets/textures/saturn ring.png'),
+            side: THREE.DoubleSide,
+            transparent: true
+        });
+        const saturnRing = new THREE.Mesh(saturnRingGeo, saturnRingMat);
+        saturnRing.rotation.x = -0.5 * Math.PI;
+        planetMeshes.saturn.add(saturnRing);
+
+        const uranusRingGeo = new THREE.RingGeometry(0.07, 0.09, 32);
+        const uranusRingMat = new THREE.MeshBasicMaterial({
+            map: textureLoader.load('./assets/textures/uranus ring.png'),
+            side: THREE.DoubleSide,
+            transparent: true
+        });
+        const uranusRing = new THREE.Mesh(uranusRingGeo, uranusRingMat);
+        uranusRing.rotation.x = -0.5 * Math.PI;
+        planetMeshes.uranus.add(uranusRing);
+
         const bodyMat = new THREE.MeshStandardMaterial({ 
-            color: 0x66aaff,
+            map: textureLoader.load('./assets/textures/comet.jpg'),
             metalness: 0.3,
             roughness: 0.7
         });
         const bodyGeom = new THREE.SphereGeometry(0.05, 16, 16);
         const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
         scene.add(bodyMesh);
+        // Crear tooltip para el cometa
+        const cometCanvas = document.createElement('canvas');
+        const cometContext = cometCanvas.getContext('2d');
+        cometCanvas.width = 200;
+        cometCanvas.height = 50;
 
-        // Trail (órbita)
+        const cometGradient = cometContext.createLinearGradient(0, 0, 200, 50);
+        cometGradient.addColorStop(0, 'rgba(102, 170, 255, 0.25)');
+        cometGradient.addColorStop(1, 'rgba(102, 170, 255, 0.1)');
+        cometContext.fillStyle = cometGradient;
+        cometContext.fillRect(0, 0, 200, 50);
+
+        cometContext.strokeStyle = 'rgba(102, 170, 255, 0.5)';
+        cometContext.lineWidth = 2;
+        cometContext.strokeRect(1, 1, 198, 48);
+
+        cometContext.font = 'Bold 18px "Segoe UI", Arial';
+        cometContext.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        cometContext.textAlign = 'center';
+        cometContext.textBaseline = 'middle';
+        cometContext.fillText('3I/ATLAS', 100, 25);
+
+        const cometTexture = new THREE.CanvasTexture(cometCanvas);
+        const cometSpriteMaterial = new THREE.SpriteMaterial({ map: cometTexture, transparent: true });
+        const cometSprite = new THREE.Sprite(cometSpriteMaterial);
+        cometSprite.scale.set(0.3, 0.075, 1);
+        scene.add(cometSprite);
+        bodyMesh.userData.label = cometSprite;
+
         let trailGeom = new THREE.BufferGeometry();
         let trailPoints = [];
         let trailLine = null;
 
-        // Estado para animación
         let positions = [];
         let planetData = {};
         let idx = 0;
         let playing = false;
         let speed = 1.0;
 
-        // UI
         const statusDiv = document.getElementById('status');
         document.getElementById('play').onclick = () => { playing = true; };
         document.getElementById('pause').onclick = () => { playing = false; };
@@ -185,7 +518,6 @@
             statusDiv.textContent = `Velocidad: ${speed}x`;
         };
 
-        // Calcular plano orbital desde datos reales
         function calculateOrbitalPlane(planetPositions) {
             if (planetPositions.length < 3) {
                 return { normal: new THREE.Vector3(0, 1, 0), center: new THREE.Vector3(0, 0, 0) };
@@ -220,7 +552,6 @@
             return { normal, center };
         }
 
-        // Función para crear órbita circular en plano inclinado
         function createPlanetOrbit(name, planetPositions, avgRadius, color) {
             const { normal, center } = calculateOrbitalPlane(planetPositions);
 
@@ -261,7 +592,6 @@
             return orbitLine;
         }
 
-        // Fetch datos y setup
         async function init() {
             try {
                 statusDiv.textContent = 'Cargando datos...';
@@ -292,8 +622,10 @@
 
                     return { 
                         x, y, z,
-                        jd: rec.JD_TT || rec.JD || rec.ISO || null,
-                        dist: rec.Distance_AU || Math.sqrt(x*x + y*y + z*z)
+                        jd: rec.JD_TT || rec.JD || null,
+                        iso: rec.ISO || null,
+                        dist: rec.Distance_AU || Math.sqrt(x*x + y*y + z*z),
+                        dist_km: rec.Distance_km || null
                     };
                 });
 
@@ -339,6 +671,10 @@
             const sy = p.y * VISUAL_SCALE;
             const sz = p.z * VISUAL_SCALE;
             bodyMesh.position.set(sx, sy, sz);
+            // Actualizar label del cometa
+            if (bodyMesh.userData.label) {
+                bodyMesh.userData.label.position.set(sx, sy, sz + 0.1);
+            }
 
             if (planetData.bodies) {
                 for (const [name, planetPositions] of Object.entries(planetData.bodies)) {
@@ -354,6 +690,18 @@
                             pos.y * VISUAL_SCALE,
                             pos.z * VISUAL_SCALE
                         );
+
+                        // Actualizar posición del label
+                        if (planetMeshes[name].userData.label) {
+                            const labelOffset = (name === 'jupiter' ? 0.15 : 
+                                                name === 'saturn' ? 0.14 :
+                                                name === 'uranus' || name === 'neptune' ? 0.12 : 0.1);
+                            planetMeshes[name].userData.label.position.set(
+                                pos.x * VISUAL_SCALE,
+                                pos.y * VISUAL_SCALE,
+                                pos.z * VISUAL_SCALE + labelOffset
+                            );
+                        }
                     }
                 }
             }
@@ -367,17 +715,45 @@
             trailGeom.attributes.position.needsUpdate = true;
             trailGeom.setDrawRange(0, i+1);
 
-            if (p.jd) {
-                statusDiv.textContent = `JD: ${p.jd.toFixed(2)} | Dist: ${p.dist.toFixed(3)} AU`;
+            if (p.jd || p.iso) {
+                statusDiv.textContent = `JD: ${(p.jd || 0).toFixed ? (p.jd || 0).toFixed(2) : p.jd} | Dist: ${p.dist.toFixed(3)} AU`;
+                
+                // Actualizar display de fecha ISO
+                const isoDateEl = document.querySelector('#date-display .iso-date');
+                const distanceEl = document.querySelector('#date-display .distance');
+                
+                if (p.iso) {
+                    const date = new Date(p.iso);
+                    const options = { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' };
+                    isoDateEl.textContent = date.toLocaleString('en-US', options) + ' UTC';
+                } else {
+                    isoDateEl.textContent = 'Date: --';
+                }
+                
+                if (p.dist_km) {
+                    distanceEl.textContent = `Distance: ${p.dist_km.toLocaleString()} km`;
+                } else {
+                    distanceEl.textContent = `Distance: ${p.dist.toFixed(3)} AU`;
+                }
             }
         }
 
-        // Loop de animación
         let lastTime = performance.now();
         function animate(now) {
             requestAnimationFrame(animate);
             const dt = (now - lastTime) / 1000.0;
             lastTime = now;
+
+            sun.rotateY(0.004);
+            planetMeshes.mercury.rotateY(0.004);
+            planetMeshes.venus.rotateY(0.002);
+            planetMeshes.earth.rotateY(0.02);
+            planetMeshes.mars.rotateY(0.018);
+            planetMeshes.jupiter.rotateY(0.04);
+            planetMeshes.saturn.rotateY(0.038);
+            planetMeshes.uranus.rotateY(0.03);
+            planetMeshes.neptune.rotateY(0.032);
+            bodyMesh.rotateY(0.03);
 
             if (playing && positions.length > 1) {
                 idx += speed * dt;
@@ -390,14 +766,37 @@
             renderer.render(scene, camera);
         }
 
-        // Responsive
+        // Navegación entre páginas
+        const navLinks = document.querySelectorAll('#navbar a');
+        const pages = document.querySelectorAll('.page');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetPage = link.getAttribute('data-page');
+                
+                // Actualizar clases activas
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                
+                pages.forEach(page => page.classList.remove('active'));
+                document.getElementById(`${targetPage}-page`).classList.add('active');
+                
+                // Mostrar/ocultar canvas
+                if (targetPage === 'simulation') {
+                    renderer.domElement.style.display = 'block';
+                } else {
+                    renderer.domElement.style.display = 'none';
+                }
+            });
+        });
+
         window.addEventListener('resize', () => {
             camera.aspect = innerWidth/innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(innerWidth, innerHeight);
         });
 
-        // Inicio
         init().then(() => {
             requestAnimationFrame(animate);
         });
