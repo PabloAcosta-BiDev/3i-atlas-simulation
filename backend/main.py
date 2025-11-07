@@ -8,14 +8,28 @@ app = FastAPI(title="3I-ATLAS Ephemeris API", version="1.0")
 # Configurar CORS (orígenes configurables vía variables de entorno)
 # FRONTEND_ORIGIN: (por ejemplo) https://<your-org>.github.io
 # RENDER_URL: la URL pública de Render: https://<your-render-service>.onrender.com
+def _parse_env_origins(value):
+    """Parse an env var that may contain one or more origins separated by commas.
+    Trim whitespace and trailing slashes.
+    Returns a list of normalized origins.
+    """
+    if not value:
+        return []
+    parts = [p.strip() for p in value.split(',') if p.strip()]
+    cleaned = []
+    for p in parts:
+        # remove trailing slash to normalize
+        if p.endswith('/'):
+            p = p[:-1]
+        cleaned.append(p)
+    return cleaned
+
 frontend_origin = os.getenv("FRONTEND_ORIGIN")
 render_url = os.getenv("RENDER_URL")
 
 allowed_origins = ["http://localhost:8080", "http://127.0.0.1:8080"]
-if frontend_origin:
-    allowed_origins.append(frontend_origin)
-if render_url:
-    allowed_origins.append(render_url)
+allowed_origins += _parse_env_origins(frontend_origin)
+allowed_origins += _parse_env_origins(render_url)
 
 # Deduplicar manteniendo orden
 seen = set()
