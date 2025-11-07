@@ -2,6 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <!-- Set API base in production by editing this meta tag (replace with your Render URL) -->
+    <meta name="api-base" content="https://your-render-service.onrender.com">
     <title>3I-ATLAS - Visualización 3D  (Modern)</title>
     <style>
         html, body { 
@@ -419,7 +421,9 @@
         import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
         import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 
-        const API_BASE = 'http://127.0.0.1:8000';
+    // Read API_BASE from meta tag (easier to swap in prod) or fall back to localhost
+    const metaApi = document.querySelector('meta[name="api-base"]');
+    const API_BASE = (metaApi && metaApi.content) ? metaApi.content : 'http://127.0.0.1:8000';
         const VECTORS_ENDPOINT = `${API_BASE}/api/vectors`;
         const PLANETS_ENDPOINT = `${API_BASE}/api/planets`;
         const AU_TO_KM = 149597870.7;

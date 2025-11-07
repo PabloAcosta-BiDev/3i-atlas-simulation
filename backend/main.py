@@ -5,14 +5,35 @@ import os, json
 
 app = FastAPI(title="3I-ATLAS Ephemeris API", version="1.0")
 
-# Configurar CORS
+# Configurar CORS (orígenes configurables vía variables de entorno)
+# FRONTEND_ORIGIN: (por ejemplo) https://<your-org>.github.io
+# RENDER_URL: la URL pública de Render: https://<your-render-service>.onrender.com
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+render_url = os.getenv("RENDER_URL")
+
+allowed_origins = ["http://localhost:8080", "http://127.0.0.1:8080"]
+if frontend_origin:
+    allowed_origins.append(frontend_origin)
+if render_url:
+    allowed_origins.append(render_url)
+
+# Deduplicar manteniendo orden
+seen = set()
+allowed = []
+for o in allowed_origins:
+    if o and o not in seen:
+        seen.add(o)
+        allowed.append(o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],  # Orígenes permitidos
+    allow_origins=allowed,
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos los métodos
-    allow_headers=["*"],  # Permite todas las cabeceras
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+print("CORS allowed_origins:", allowed)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")

@@ -31,3 +31,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Environment file (should not be committed)
+.env
