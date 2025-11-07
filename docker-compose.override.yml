@@ -1,0 +1,32 @@
+version: '3.8'
+
+# This docker-compose.override.yml enhances the official Airflow quickstart
+# compose file by mounting local DAGs, scripts and output directories so
+# you can develop and inspect outputs locally.
+
+services:
+  airflow-webserver:
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/airflow/scripts:ro
+      - ./data/output:/opt/airflow/data/output
+  airflow-scheduler:
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/airflow/scripts:ro
+      - ./data/output:/opt/airflow/data/output
+  airflow-worker:
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/airflow/scripts:ro
+      - ./data/output:/opt/airflow/data/output
+  airflow-triggerer:
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts:/opt/airflow/scripts:ro
+      - ./data/output:/opt/airflow/data/output
+
+# Optionally you can add environment overrides here, e.g.:
+# environment:
+#   - EPHEM_API_URL=https://threei-atlas-simulation-1.onrender.com/api/vectors
+#   - EPHEM_DELTA_LOCATIONS=cancun,huejotzingo,tijuana
