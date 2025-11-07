@@ -269,14 +269,14 @@
         <div id="ui">
             <button id="play">▶ Play</button>
             <button id="pause">⏸ Pause</button>
-            <label>Speed: <input id="speed" type="range" min="0.1" max="10" step="0.1" value="1"></label>
+            <label>Speed: <input id="speed" type="range" min="0.1" max="100" step="0.1" value="1"></label>
             <div id="status">Fetching data...</div>
         </div>
         <div id="date-display">
             <div class="iso-date">--</div>
             <div class="distance">Distance: -- AU</div>
             <input type="range" id="timeline-slicer" class="hud-slider" min="0" max="0" value="0" style="width:180px;vertical-align:middle;margin-top:8px;">
-            <span id="timeline-value" style="display: none;">0</span>
+            Time slider <span id="timeline-value" style="display: none;">0</span>
         </div>
         
     </div>
@@ -467,51 +467,219 @@
         controls.target.set(0, 0, 0);
         controls.update();
 
-        const light = new THREE.DirectionalLight(0xffffff, 1.0);
-        light.position.set(5,10,7.5);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x333333));
+        
 
-        // Sol original con textura (sin cambios)
-        const sunMat = new THREE.MeshBasicMaterial({
-            map: textureLoader.load('./assets/textures/sun.jpg'),
+        // === Sol con textura base + overlay de noise animado ===
+        const sunTexture = textureLoader.load('./assets/textures/sun.jpg');
+
+        // --- Vertex Shader ---
+        const sunVertexShader = `
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            void main() {
+                vUv = uv;
+                vPosition = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        // --- Fragment Shader con textura + Simplex Noise ---
+        const sunFragmentShader = `
+            uniform sampler2D sunTexture;
+            uniform float time;
+            varying vec2 vUv;
+            varying vec3 vPosition;
+
+            // Simplex Noise 3D
+            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
+            vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+            float snoise(vec3 v) { 
+                const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                vec3 i  = floor(v + dot(v, C.yyy));
+                vec3 x0 = v - i + dot(i, C.xxx);
+                vec3 g = step(x0.yzx, x0.xyz);
+                vec3 l = 1.0 - g;
+                vec3 i1 = min(g.xyz, l.zxy);
+                vec3 i2 = max(g.xyz, l.zxy);
+                vec3 x1 = x0 - i1 + C.xxx;
+                vec3 x2 = x0 - i2 + C.yyy;
+                vec3 x3 = x0 - D.yyy;
+                i = mod289(i);
+                vec4 p = permute(permute(permute(
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                float n_ = 0.142857142857;
+                vec3 ns = n_ * D.wyz - D.xzx;
+                vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                vec4 x_ = floor(j * ns.z);
+                vec4 y_ = floor(j - 7.0 * x_);
+                vec4 x = x_ * ns.x + ns.yyyy;
+                vec4 y = y_ * ns.x + ns.yyyy;
+                vec4 h = 1.0 - abs(x) - abs(y);
+                vec4 b0 = vec4(x.xy, y.xy);
+                vec4 b1 = vec4(x.zw, y.zw);
+                vec4 s0 = floor(b0)*2.0 + 1.0;
+                vec4 s1 = floor(b1)*2.0 + 1.0;
+                vec4 sh = -step(h, vec4(0.0));
+                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                vec3 p0 = vec3(a0.xy, h.x);
+                vec3 p1 = vec3(a0.zw, h.y);
+                vec3 p2 = vec3(a1.xy, h.z);
+                vec3 p3 = vec3(a1.zw, h.w);
+                vec4 norm = taylorInvSqrt(vec4(
+                    dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+                p0 *= norm.x;
+                p1 *= norm.y;
+                p2 *= norm.z;
+                p3 *= norm.w;
+                vec4 m = max(0.6 - vec4(
+                    dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                m = m * m;
+                return 42.0 * dot(m*m, vec4(
+                    dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+            }
+
+            void main() {
+                vec4 texColor = texture2D(sunTexture, vUv);
+
+                float n1 = snoise(vPosition * 3.0 + time * 0.3);
+                float n2 = snoise(vPosition * 5.0 - time * 0.2);
+                float combined = (n1 + n2 * 0.5) * 0.5 + 0.5;
+
+                vec3 warmTint = mix(vec3(1.0, 0.6, 0.2), vec3(1.0, 0.9, 0.6), combined);
+                vec3 finalColor = texColor.rgb * (0.9 + combined * 0.5) * warmTint;
+
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        // --- Material y malla del Sol ---
+        const sunMat = new THREE.ShaderMaterial({
+            uniforms: {
+                sunTexture: { value: sunTexture },
+                time: { value: 0.0 }
+            },
+            vertexShader: sunVertexShader,
+            fragmentShader: sunFragmentShader
         });
+
         const sunGeom = new THREE.SphereGeometry(0.1, 32, 32);
         const sun = new THREE.Mesh(sunGeom, sunMat);
         sun.rotation.x = Math.PI / 2;
         scene.add(sun);
 
-        // Shader simple para glow con blur difuso (halo suave alrededor del sol)
+        // --- Luz solar central ---
+        const sunlight = new THREE.PointLight(0xffffff, 1, 0, 0);
+        sunlight.position.set(0, 0, 0);
+        scene.add(sunlight);
+
+
+        
+        const light = new THREE.DirectionalLight(0xffffff, 0.1);
+        light.position.set(5,10,7.5);
+        scene.add(light);
+
+        // Shader con Simplex Noise para efecto solar orgánico
         const glowVertexShader = `
             varying vec3 vNormal;
+            varying vec3 vPosition;
             void main() {
                 vNormal = normalize(normalMatrix * normal);
+                vPosition = position;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `;
 
         const glowFragmentShader = `
             uniform float intensity;
-        varying vec3 vNormal;
+            uniform float time;
+            varying vec3 vNormal;
+            varying vec3 vPosition;
 
-        void main() {
-            float strength = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 4.0);
-            
-            // Color base (amarillo cálido)
-            vec3 baseColor = vec3(1.0, 0.8, 0.0);
-            // Desplazamiento a blanco según la intensidad (controlado por 'intensity')
-            vec3 color = mix(baseColor, vec3(1.0), intensity * 2.0);
-            
-            gl_FragColor = vec4(color, strength * intensity);
-        }
+            // Simplex Noise 3D
+            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+            vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+            float snoise(vec3 v) { 
+                const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                vec3 i  = floor(v + dot(v, C.yyy));
+                vec3 x0 = v - i + dot(i, C.xxx);
+                vec3 g = step(x0.yzx, x0.xyz);
+                vec3 l = 1.0 - g;
+                vec3 i1 = min(g.xyz, l.zxy);
+                vec3 i2 = max(g.xyz, l.zxy);
+                vec3 x1 = x0 - i1 + C.xxx;
+                vec3 x2 = x0 - i2 + C.yyy;
+                vec3 x3 = x0 - D.yyy;
+                i = mod289(i); 
+                vec4 p = permute(permute(permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                float n_ = 0.142857142857;
+                vec3 ns = n_ * D.wyz - D.xzx;
+                vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                vec4 x_ = floor(j * ns.z);
+                vec4 y_ = floor(j - 7.0 * x_);
+                vec4 x = x_ *ns.x + ns.yyyy;
+                vec4 y = y_ *ns.x + ns.yyyy;
+                vec4 h = 1.0 - abs(x) - abs(y);
+                vec4 b0 = vec4(x.xy, y.xy);
+                vec4 b1 = vec4(x.zw, y.zw);
+                vec4 s0 = floor(b0)*2.0 + 1.0;
+                vec4 s1 = floor(b1)*2.0 + 1.0;
+                vec4 sh = -step(h, vec4(0.0));
+                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                vec3 p0 = vec3(a0.xy, h.x);
+                vec3 p1 = vec3(a0.zw, h.y);
+                vec3 p2 = vec3(a1.xy, h.z);
+                vec3 p3 = vec3(a1.zw, h.w);
+                vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+                p0 *= norm.x;
+                p1 *= norm.y;
+                p2 *= norm.z;
+                p3 *= norm.w;
+                vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                m = m * m;
+                return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+            }
+
+            void main() {
+                // Noise animado
+                float noise = snoise(vPosition * 2.0 + time * 0.2);
+                float noise2 = snoise(vPosition * 4.0 - time * 0.3);
+                float combinedNoise = (noise + noise2 * 0.5) * 0.5 + 0.5;
+                
+                // Fresnel mejorado
+                float fresnel = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 4.0);
+                
+                // Modular intensidad con noise
+                float strength = fresnel * (0.8 + combinedNoise * 0.4);
+                
+                // Color solar realista
+                vec3 baseColor = vec3(1.0, 0.7, 0.2);
+                vec3 hotColor = vec3(1.0, 0.95, 0.8);
+                vec3 color = mix(baseColor, hotColor, combinedNoise);
+                
+                gl_FragColor = vec4(color, strength * intensity);
+            }
         `;
-
         // Crear esfera de glow con shader para blur
         const glowGeom = new THREE.SphereGeometry(0.15, 32, 32);  // Tamaño mayor para halo
         const glowMat = new THREE.ShaderMaterial({
             vertexShader: glowVertexShader,
             fragmentShader: glowFragmentShader,
-            uniforms: { intensity: { value: 0.3 } },  // Opacidad baja inicial
+            uniforms: { 
+                intensity: { value: 0.3 },
+                time: { value: 0.0 }
+            },
             transparent: true,
             blending: THREE.AdditiveBlending,
             side: THREE.BackSide,
@@ -520,14 +688,21 @@
         const glowMesh = new THREE.Mesh(glowGeom, glowMat);
         glowMesh.rotation.x = Math.PI / 2;
         scene.add(glowMesh);
-
-        // Animación pulsante suave (varía la intensidad del shader para simular pulso)
+        // Animación pulsante suave con actualización de time para noise
         function animateGlow() {
             const time = Date.now() * 0.001;  // Velocidad lenta para pulso natural
             glowMat.uniforms.intensity.value = 0.2 + 0.04 * Math.sin(time);  // Opacidad pulsante baja
+            glowMat.uniforms.time.value = time;  // Actualizar time para el noise
             requestAnimationFrame(animateGlow);
         }
         animateGlow();
+        function animateSun() {
+            const t = Date.now() * 0.02;
+            sunMat.uniforms.time.value = t;
+            requestAnimationFrame(animateSun);
+        }
+        animateSun();
+
 
 
         const planetMeshes = {};
