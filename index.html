@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <!-- API base URL configuration for different environments -->
+    <meta name="api-base" content="">
+    <script>
+        // Set API base dynamically based on environment
+        const apiBaseMeta = document.querySelector('meta[name="api-base"]');
+        let API_BASE_URL;
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            API_BASE_URL = 'http://127.0.0.1:8000';
+        } else if (window.location.hostname.includes('vercel.app')) {
+            API_BASE_URL = window.location.origin;
+        } else if (window.location.hostname.includes('github.io')) {
+            API_BASE_URL = 'https://3i-atlas-simulation.vercel.app';
+        } else {
+            API_BASE_URL = window.location.origin;
+        }
+        
+        // Update meta tag
+        apiBaseMeta.content = API_BASE_URL;
+        console.log('API Base URL:', API_BASE_URL);
+    </script>
+    <title>3I-ATLAS - Visualización 3D</title>
+    <style>
+        html, body { 
+            margin: 0; 
+            height: 100%;
+            background: #000; 
+            overflow-x: hidden;
+        }
+        canvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: auto;
+        }
+        
+        #navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        #navbar h1 {
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            margin: 0;
+            font-weight: 300;
+        }
+        
+        #navbar .status {
+            margin-left: auto;
+            color: #4CAF50;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        #controls h3 {
+            color: #fff;
+            margin: 0 0 10px 0;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        
+        #controls label {
+            display: block;
+            color: #ccc;
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        
+        #controls input[type="range"] {
+            width: 200px;
+            margin-bottom: 10px;
+        }
+        
+        #controls button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 2px;
+        }
+        
+        #controls button:hover {
+            background: #1976D2;
+        }
+        
+        #info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar">
+        <h1>3I-ATLAS Simulation</h1>
+        <div class="status" id="apiStatus">Connecting...</div>
+    </div>
+    
+    <div id="controls">
+        <h3>Controls</h3>
+        <label for="timeSpeed">Time Speed</label>
+        <input type="range" id="timeSpeed" min="1" max="365" value="1" />
+        
+        <label for="planetSize">Planet Size</label>
+        <input type="range" id="planetSize" min="0.1" max="5" value="1" step="0.1" />
+        
+        <div style="margin-top: 10px;">
+            <button onclick="resetView()">Reset View</button>
+            <button onclick="toggleOrbits()">Toggle Orbits</button>
+            <button onclick="pauseAnimation()">Pause</button>
+        </div>
+    </div>
+    
+    <div id="info">
+        <div><strong>API Status:</strong> <span id="connectionStatus">Testing...</span></div>
+        <div><strong>Data Source:</strong> Vercel Serverless</div>
+        <div><strong>Last Update:</strong> <span id="lastUpdate">Loading...</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Global variables
+        let scene, camera, renderer, planets = [], animationId;
+        let isPaused = false, showOrbits = true;
+        
+        // Initialize API connection test
+        async function testAPIConnection() {
+            const statusElement = document.getElementById('connectionStatus');
+            const apiStatusElement = document.getElementById('apiStatus');
+            const lastUpdateElement = document.getElementById('lastUpdate');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/status`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    statusElement.textContent = 'Connected ✓';
+                    statusElement.style.color = '#4CAF50';
+                    apiStatusElement.textContent = 'Connected ✓';
+                    apiStatusElement.style.color = '#4CAF50';
+                    lastUpdateElement.textContent = new Date(data.last_update).toLocaleDateString();
+                    
+                    // Load the 3D visualization
+                    loadVisualization();
+                } else {
+                    throw new Error('API not ready');
+                }
+            } catch (error) {
+                statusElement.textContent = 'Connection Error ✗';
+                statusElement.style.color = '#f44336';
+                apiStatusElement.textContent = 'Error ✗';
+                apiStatusElement.style.color = '#f44336';
+                console.error('API Connection Error:', error);
+            }
+        }
+        
+        // Initialize Three.js scene
+        function initThreeJS() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 50, 100);
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            // Add some ambient lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            // Add point light (sun)
+            const pointLight = new THREE.PointLight(0xffffff, 1, 0);
+            pointLight.position.set(0, 0, 0);
+            scene.add(pointLight);
+            
+            // Add stars
+            createStars();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+        }
+        
+        // Create starfield
+        function createStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 1000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 2000;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1
+            });
+            
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        
+        // Load and display planets
+        async function loadVisualization() {
+            try {
+                // Fetch planet data
+                const response = await fetch(`${API_BASE_URL}/api/planets`);
+                const planetData = await response.json();
+                
+                // Create planets
+                planetData.forEach(planet => {
+                    createPlanet(planet);
+                });
+                
+                // Start animation
+                animate();
+                
+            } catch (error) {
+                console.error('Error loading visualization:', error);
+            }
+        }
+        
+        // Create a planet object
+        function createPlanet(planetData) {
+            const geometry = new THREE.SphereGeometry(planetData.radius || 1, 32, 32);
+            const material = new THREE.MeshPhongMaterial({
+                color: planetData.color || 0xffffff
+            });
+            
+            const planet = new THREE.Mesh(geometry, material);
+            planet.position.set(
+                planetData.position?.x || 0,
+                planetData.position?.y || 0,
+                planetData.position?.z || 0
+            );
+            
+            planet.userData = planetData;
+            planets.push(planet);
+            scene.add(planet);
+            
+            // Add orbit path if available
+            if (showOrbits && planetData.orbit) {
+                createOrbitPath(planetData.orbit);
+            }
+        }
+        
+        // Create orbit visualization
+        function createOrbitPath(orbitData) {
+            // Simple circular orbit for now
+            const points = [];
+            const radius = orbitData.radius || 50;
+            
+            for (let i = 0; i <= 64; i++) {
+                const angle = (i / 64) * Math.PI * 2;
+                points.push(new THREE.Vector3(
+                    Math.cos(angle) * radius,
+                    0,
+                    Math.sin(angle) * radius
+                ));
+            }
+            
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ color: 0x444444 });
+            const orbit = new THREE.Line(geometry, material);
+            scene.add(orbit);
+        }
+        
+        // Animation loop
+        function animate() {
+            if (isPaused) return;
+            
+            animationId = requestAnimationFrame(animate);
+            
+            // Rotate planets
+            planets.forEach(planet => {
+                planet.rotation.y += 0.01;
+                
+                // Simple orbital motion
+                const time = Date.now() * 0.0001;
+                const radius = planet.userData.orbit?.radius || 30;
+                planet.position.x = Math.cos(time) * radius;
+                planet.position.z = Math.sin(time) * radius;
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Control functions
+        function resetView() {
+            camera.position.set(0, 50, 100);
+            camera.lookAt(0, 0, 0);
+        }
+        
+        function toggleOrbits() {
+            showOrbits = !showOrbits;
+            // Reload visualization with new orbit setting
+            scene.clear();
+            planets = [];
+            loadVisualization();
+        }
+        
+        function pauseAnimation() {
+            isPaused = !isPaused;
+            if (!isPaused) animate();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            initThreeJS();
+            testAPIConnection();
+        });
+    </script>
+</body>
+</html>
