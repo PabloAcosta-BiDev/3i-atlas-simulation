@@ -1,0 +1,131 @@
+name: 🌌 Update Ephemeris Data
+
+on:
+  # Run every 60 days (as specified in requirements)
+  schedule:
+    - cron: '0 0 */60 * *'  # At 00:00 UTC every 60 days
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update even if recent data exists'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper commits
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install astroquery astropy numpy
+      
+      - name: 🔍 Check if update needed
+        id: check_update
+        run: |
+          # Check if last_update.json exists and is recent
+          if [ -f "data/last_update.json" ] && [ "${{ inputs.force_update }}" != "true" ]; then
+            last_update=$(python -c "
+            import json
+            from datetime import datetime, timedelta
+            try:
+                with open('data/last_update.json', 'r') as f:
+                    data = json.load(f)
+                last = datetime.fromisoformat(data['last_update'].replace('Z', '+00:00'))
+                cutoff = datetime.now() - timedelta(days=50)  # Buffer before 60-day mark
+                print('skip' if last > cutoff else 'update')
+            except:
+                print('update')
+            ")
+            echo "action=$last_update" >> $GITHUB_OUTPUT
+          else
+            echo "action=update" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 🌌 Fetch and update ephemeris data
+        if: steps.check_update.outputs.action == 'update'
+        env:
+          API_BASE_URL: ${{ secrets.VERCEL_API_URL || 'https://threei-atlas-simulation-1.onrender.com' }}
+        run: |
+          echo "🚀 Starting data update..."
+          python scripts/update_data.py
+      
+      - name: 📋 Check for changes
+        if: steps.check_update.outputs.action == 'update'
+        id: check_changes
+        run: |
+          if git diff --quiet data/; then
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No data changes detected"
+          else
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Data changes detected"
+            git status --porcelain data/
+          fi
+      
+      - name: 💾 Commit and push changes
+        if: steps.check_update.outputs.action == 'update' && steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Add only data files
+          git add data/ephem_*.json data/last_update.json
+          
+          # Create commit with timestamp
+          commit_message="🌌 Auto-update ephemeris data $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          - Updated ephemeris vectors
+          - Updated delta calculations for cancun, huejotzingo, tijuana
+          - Automated 60-day data refresh
+          
+          [skip ci]"
+          
+          git commit -m "$commit_message"
+          git push origin main
+      
+      - name: 📊 Summary
+        if: steps.check_update.outputs.action == 'update'
+        run: |
+          echo "## 🌌 Ephemeris Data Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_changes.outputs.changes }}" == "true" ]; then
+            echo "✅ **Status**: Data successfully updated and committed" >> $GITHUB_STEP_SUMMARY
+            echo "📅 **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Updated Files:" >> $GITHUB_STEP_SUMMARY
+            echo "- \`data/ephem_vectors_fetched.json\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`data/ephem_delta_cancun.json\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`data/ephem_delta_huejotzingo.json\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`data/ephem_delta_tijuana.json\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`data/last_update.json\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ **Status**: No data changes detected" >> $GITHUB_STEP_SUMMARY
+            echo "🔄 **Next Update**: In ~60 days or manual trigger" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: 🚫 Skipped update
+        if: steps.check_update.outputs.action == 'skip'
+        run: |
+          echo "## ⏭️ Update Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Reason**: Recent data exists (less than 50 days old)" >> $GITHUB_STEP_SUMMARY
+          echo "🔄 **Next Update**: Automatically in ~60 days" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Manual Trigger**: Use workflow_dispatch with force_update=true" >> $GITHUB_STEP_SUMMARY

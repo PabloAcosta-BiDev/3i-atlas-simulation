@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 import os, json
 
 app = FastAPI(title="3I-ATLAS Ephemeris API", version="1.0")

@@ -20,6 +20,7 @@ var/
 .installed.cfg
 *.egg
 venv/
+.venv/
 
 # IDEs
 .idea/
@@ -32,5 +33,26 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Environment file (should not be committed)
+# Environment files (should not be committed)
 .env
+.env.local
+.env.production
+
+# Vercel
+.vercel
+
+# Local development
+node_modules/
+*.log
+
+# Skyfield cache (astronomical data)
+*.bsp
+*.tf
+
+# Temporary data files
+data/temp/
+data/cache/
+
+# Local test outputs
+data/output/
+*.csv

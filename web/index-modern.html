@@ -2,8 +2,27 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <!-- Set API base in production by editing this meta tag (now points to Render) -->
-    <meta name="api-base" content="https://threei-atlas-simulation-1.onrender.com">
+    <!-- API base URL configuration for different environments -->
+    <meta name="api-base" content="">
+    <script>
+        // Set API base dynamically based on environment
+        const apiBaseMeta = document.querySelector('meta[name="api-base"]');
+        let API_BASE_URL;
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            API_BASE_URL = 'http://127.0.0.1:8000';
+        } else if (window.location.hostname.includes('vercel.app')) {
+            API_BASE_URL = window.location.origin;
+        } else if (window.location.hostname.includes('github.io')) {
+            // For GitHub Pages, use environment variable or fallback
+            API_BASE_URL = 'https://your-vercel-deployment.vercel.app'; // TODO: Replace with actual Vercel URL
+        } else {
+            API_BASE_URL = window.location.origin;
+        }
+        
+        // Update meta tag
+        apiBaseMeta.content = API_BASE_URL;
+    </script>
     <title>3I-ATLAS - Visualización 3D  (Modern)</title>
     <style>
         html, body { 
