@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <!-- API base URL configuration for different environments -->
     <meta name="api-base" content="">
     <script>
@@ -47,7 +48,7 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 60px;
+            height: 70px;
             background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
             display: flex;
@@ -56,6 +57,15 @@
             gap: 40px;
             z-index: 1000;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0 20px;
+        }
+        
+        @media (max-width: 768px) {
+            #navbar {
+                height: 80px;
+                gap: 20px;
+                padding: 0 10px;
+            }
         }
         #navbar a {
             color: rgba(255, 255, 255, 0.7);
@@ -65,6 +75,18 @@
             font-weight: 500;
             transition: color 0.3s;
             cursor: pointer;
+            padding: 12px 8px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+            #navbar a {
+                font-size: 18px;
+                padding: 15px 12px;
+                min-height: 50px;
+            }
         }
         #navbar a:hover {
             color: rgba(255, 255, 255, 1);
@@ -104,9 +126,39 @@
             color: white;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+        
+        @media (max-width: 768px) {
+            #dashboard-page, #about-page {
+                padding: 100px 15px 120px 15px;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            
+            #dashboard-page h1, #about-page h1 {
+                font-size: 28px;
+                margin-bottom: 25px;
+            }
+            
+            #about-page h2 {
+                font-size: 24px;
+            }
+            
+            #about-page h3, #about-page h4 {
+                font-size: 20px;
+            }
+            
+            #about-page table {
+                font-size: 14px;
+            }
+            
+            #about-page .page > div {
+                max-width: 100%;
+                padding: 0;
+            }
+        }
         #ui { 
             position: fixed; 
-            top: 76px; 
+            top: 86px; 
             left: 16px; 
             color: white; 
             font-family: Arial, sans-serif;
@@ -114,6 +166,17 @@
             padding: 12px;
             border-radius: 8px;
             z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        @media (max-width: 768px) {
+            #ui {
+                top: 95px;
+                left: 10px;
+                right: 10px;
+                padding: 20px 15px;
+                font-size: 16px;
+            }
         }
         button {
             background: #2a2a2a;
@@ -123,12 +186,44 @@
             border-radius: 4px;
             cursor: pointer;
             margin-right: 8px;
+            font-size: 14px;
+            min-height: 40px;
+            touch-action: manipulation;
+        }
+        
+        @media (max-width: 768px) {
+            button {
+                padding: 15px 20px;
+                font-size: 18px;
+                margin-right: 12px;
+                margin-bottom: 10px;
+                min-height: 50px;
+                border-radius: 8px;
+            }
         }
         button:hover {
             background: #3a3a3a;
         }
         label {
             margin-left: 12px;
+            font-size: 14px;
+            display: inline-block;
+        }
+        
+        @media (max-width: 768px) {
+            label {
+                font-size: 18px;
+                margin-left: 0;
+                margin-top: 15px;
+                display: block;
+                width: 100%;
+            }
+            
+            #speed {
+                width: 100%;
+                height: 40px;
+                margin-top: 10px;
+            }
         }
         #status {
             margin-top: 8px;
@@ -149,6 +244,14 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
         }
+        
+        @media (max-width: 768px) {
+            #footer {
+                padding: 20px 15px;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+        }
         #date-display {
             position: fixed;
             bottom: 80px;
@@ -163,13 +266,25 @@
             font-size: 14px;
             z-index: 100;
             border: 1px solid rgba(102, 170, 255, 0.3);
-            width: 230px;          /* ancho fijo */
-            min-height: 50px;      /* altura mínima */
+            width: 230px;
+            min-height: 50px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden;      /* evita que el contenido desborde */
+            overflow: hidden;
+        }
+        
+        @media (max-width: 768px) {
+            #date-display {
+                bottom: 120px;
+                width: calc(100% - 40px);
+                max-width: 350px;
+                padding: 20px;
+                font-size: 16px;
+                min-height: 70px;
+                border-radius: 12px;
+            }
         }
         #date-display .iso-date {
             font-weight: 600;
@@ -180,6 +295,16 @@
             margin-top: 4px;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.7);
+        }
+        
+        @media (max-width: 768px) {
+            #date-display .iso-date {
+                font-size: 20px;
+            }
+            #date-display .distance {
+                font-size: 16px;
+                margin-top: 8px;
+            }
         }
         .tooltip {
             position: fixed;
@@ -196,6 +321,26 @@
             z-index: 200;
             min-width: 200px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .tooltip {
+                padding: 20px 24px;
+                font-size: 16px;
+                min-width: 250px;
+                max-width: calc(100vw - 40px);
+                border-radius: 16px;
+            }
+            
+            .tooltip h3 {
+                font-size: 22px;
+                margin-bottom: 15px;
+            }
+            
+            .tooltip p {
+                font-size: 16px;
+                margin: 8px 0;
+            }
         }
         .tooltip.visible {
             opacity: 1;
@@ -215,16 +360,26 @@
         /* Slider base */
         .hud-slider {
             appearance: none;
-            -webkit-appearance: none;  /* Chrome/Safari */
-            -moz-appearance: none;     /* Firefox */
+            -webkit-appearance: none;
+            -moz-appearance: none;
             width: 180px;
             height: 4px;
-            background: #222;           /* barra oscura tipo HUD */
+            background: #222;
             border-radius: 2px;
             outline: none;
-            accent-color: #66ffff;      /* barra de progreso moderna */
+            accent-color: #66ffff;
             cursor: pointer;
             margin-top: 8px;
+            touch-action: manipulation;
+        }
+        
+        @media (max-width: 768px) {
+            .hud-slider {
+                width: 100%;
+                height: 8px;
+                margin-top: 15px;
+                border-radius: 4px;
+            }
         }
 
         /* Chrome, Safari, Opera */
@@ -238,6 +393,14 @@
             border-radius: 50%;
             box-shadow: 0 0 8px #00ffff;
             transition: transform 0.1s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .hud-slider::-webkit-slider-thumb {
+                width: 20px;
+                height: 20px;
+                border: 3px solid #00ffff;
+            }
         }
 
         .hud-slider::-webkit-slider-thumb:hover {
@@ -254,6 +417,14 @@
             box-shadow: 0 0 8px #00ffff;
             cursor: pointer;
             transition: transform 0.1s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .hud-slider::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                border: 3px solid #00ffff;
+            }
         }
 
         .hud-slider::-moz-range-thumb:hover {
