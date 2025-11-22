@@ -16,15 +16,16 @@ TARGET = "0003I"   # o "3I/ATLAS" según cómo lo acepte MPC
 START = "2025-10-23"   # UTC date string
 STEP = '1h'            # intervalo: '1h', '10m', '30m', '1d', etc.
 NUMBER_VECT = 1440     # <= 1441 (puntos para vectores heliocéntricos)
-NUMBER_DELTA = None    # si None, usa default de MPC; si quieres específico: 49, 100, etc.
+NUMBER_DELTA = 1440    # Mismo rango que vectors (23 Oct - 21 Dic = ~60 días × 24 horas)
 OUT_DIR = "data"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Locations: (lon east, lat, alt). MPC acepta longitud este; usamos strings legibles por Angle
 LOCATIONS = {
-    "huejotzingo": ("-98.4073988d", "19.158971d", "2260m"),
-    "tijuana": ("-117.060556d", "32.514947d", "40m"),
-    "cancun": ("-86.8475d", "21.1619d", "10m")
+    "paranal": ("-70.4033d", "-24.6272d", "2635m"),          # Paranal Observatory, Chile
+    "sanpedromartir": ("-115.4637d", "31.0439d", "2830m"),   # San Pedro Mártir, México
+    "lapalma": ("-17.8947d", "28.7636d", "2396m"),           # Roque de los Muchachos, España
+    "maunakea": ("-155.4783d", "19.8260d", "4207m")          # Mauna Kea, Hawái
 }
 
 def table_to_jsonlist(tab, heliocentric=False, include_jd=True):
