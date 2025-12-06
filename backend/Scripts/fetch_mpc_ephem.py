@@ -124,7 +124,7 @@ def fetch_deltas():
         # add metadata fields for location and UTC offset
         for rec in lst:
             rec['Location'] = name
-            rec['UTC_offset'] = -6 if name == 'huejotzingo' else (-7 if name=='tijuana' else -5)
+            rec['UTC_offset'] = 0  # UTC time for international observatories
         
         outfn = os.path.join(OUT_DIR, f"ephem_delta_{name}.json")
         with open(outfn, "w", encoding="utf-8") as f:
